@@ -22,8 +22,6 @@ class DataStream(ABC):
                     data_batch: List[Any],
                     criteria: Optional[str] = None) -> List[Any]:
         """Filter data based on criteria"""
-        if criteria is None:
-            return data_batch
         return data_batch
 
     def get_stats(self) -> Dict[str, Union[str, int, float]]:
@@ -45,9 +43,12 @@ class SensorStream(DataStream):
         """Process sensor data batch."""
         for item in data_batch:
             if isinstance(item, str) and "temp:" in item:
-                temp = float(item.split("temp:")[1])
-                self.total_temp += temp
-                self.temp_count += 1
+                try:
+                    temp = float(item.split("temp:")[1])
+                    self.total_temp += temp
+                    self.temp_count += 1
+                except Exception as e:
+                    print(f"Error: {e}")
 
         self.processed_count += len(data_batch)
         if self.temp_count > 0:
@@ -63,9 +64,16 @@ class SensorStream(DataStream):
                     criteria: Optional[str] = None) -> List[Any]:
         """Filter sensor data based on criteria."""
         if criteria == "high-priority":
-            return [item for item in data_batch
-                    if isinstance(item, str) and "temp:" in item
-                    and float(item.split("temp:")[1]) > 25]
+            filtered = []
+            for item in data_batch:
+                if isinstance(item, str) and "temp:" in item:
+                    try:
+                        temp = float(item.split("temp:")[1])
+                        if temp > 25:
+                            filtered += [item]
+                    except Exception as e:
+                        print(f"Error: {e}")
+            return filtered
         return data_batch
 
 
@@ -81,10 +89,13 @@ class TransactionStream(DataStream):
         """Process transaction data batch."""
         for item in data_batch:
             if isinstance(item, str):
-                if "buy:" in item:
-                    self.net_flow += int(item.split("buy:")[1])
-                elif "sell:" in item:
-                    self.net_flow -= int(item.split("sell:")[1])
+                try:
+                    if "buy:" in item:
+                        self.net_flow += int(item.split("buy:")[1])
+                    elif "sell:" in item:
+                        self.net_flow -= int(item.split("sell:")[1])
+                except Exception as e:
+                    print(f"Error: {e}")
 
         self.processed_count += len(data_batch)
         sign = "+" if self.net_flow >= 0 else ""
@@ -97,9 +108,16 @@ class TransactionStream(DataStream):
                     criteria: Optional[str] = None) -> List[Any]:
         """Filter transaction data based on criteria."""
         if criteria == "high-priority":
-            return [item for item in data_batch
-                    if isinstance(item, str) and ":" in item
-                    and int(item.split(":")[1]) > 100]
+            filtered = []
+            for item in data_batch:
+                if isinstance(item, str) and ":" in item:
+                    try:
+                        amount = int(item.split(":")[1])
+                        if amount > 100:
+                            filtered += [item]
+                    except Exception as e:
+                        print(f"Error: {e}")
+            return filtered
         return data_batch
 
 
@@ -141,7 +159,7 @@ class StreamProcessor:
 
     def add_stream(self, stream: DataStream) -> None:
         """Add a stream to the processor."""
-        self.streams.append(stream)
+        self.streams += [stream]
 
     def process_all(self, data_batches: List[List[Any]]) -> List[str]:
         """Process data batches across all streams polymorphically."""
@@ -150,10 +168,10 @@ class StreamProcessor:
         for stream in self.streams:
             try:
                 result = stream.process_batch(data_batches[i])
-                results.append(result)
+                results += [result]
                 i += 1
             except Exception as e:
-                results.append(f"Error: {e}")
+                results += [f"Error: {e}"]
                 i += 1
         return results
 
