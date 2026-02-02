@@ -102,7 +102,8 @@ class LogProcessor(DataProcessor):
         """Validate log entry."""
         try:
             _ = data + ""
-            if "ERROR" in data or "WARNING" in data or "INFO" in data:
+            if (data[:5] == "ERROR" or data[:7] == "WARNING"
+                    or data[:4] == "INFO"):
                 return True
             return False
         except Exception:
@@ -113,9 +114,9 @@ class LogProcessor(DataProcessor):
         if not self.validate(data):
             raise ValueError("Invalid log entry")
 
-        if "ERROR" in data:
+        if data[:5] == "ERROR":
             log_text = f"[ALERT] ERROR level detected:{data[6:]}"
-        elif "WARNING" in data:
+        elif data[:7] == "WARNING":
             log_text = f"[WARNING] WARNING level detected:{data[8:]}"
         else:
             log_text = f"[INFO] INFO level detected:{data[5:]}"
